@@ -1,0 +1,196 @@
+:root {
+  --bg-color: #ffffff;
+  --text-primary: #000000;
+  --font-family: 'Times New Roman', Times, serif;
+  
+  /* Required Accent Colors */
+  --color-green: #CCEABB;
+  --color-gray: #3F3F44;
+  --color-peach: #FDCB9E;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family);
+  background: var(--bg-color);
+  color: var(--text-primary);
+  min-height: 100vh;
+}
+
+h1 {
+  font-size: 2.5rem;
+  font-weight: normal;
+  margin-bottom: 1rem;
+}
+
+h2 {
+  font-size: 2rem;
+  font-weight: normal;
+  margin-bottom: 1rem;
+}
+
+h3 {
+  font-size: 1.5rem;
+  font-weight: normal;
+  margin-bottom: 1rem;
+}
+
+/* Solid Block Elements */
+.glass-panel {
+  background: #ffffff;
+  border: 3px solid var(--color-gray);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.glass-button {
+  background: #ffffff;
+  color: var(--text-primary);
+  border: 2px solid var(--color-gray);
+  padding: 5px 10px;
+  font-family: var(--font-family);
+  font-size: 1rem;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.glass-button:hover {
+  background-color: var(--color-green);
+}
+
+.primary-button {
+  background: var(--color-peach);
+  color: var(--text-primary);
+  border: 2px solid var(--color-gray);
+  padding: 5px 10px;
+  font-family: var(--font-family);
+  font-size: 1rem;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.primary-button:hover {
+  background-color: var(--color-green);
+}
+
+.input-field {
+  width: 100%;
+  background: #ffffff;
+  border: 2px solid var(--color-gray);
+  color: var(--text-primary);
+  padding: 5px;
+  font-family: var(--font-family);
+  font-size: 1rem;
+  margin-bottom: 10px;
+}
+
+.input-field:focus {
+  outline: none;
+  border-width: 3px;
+}
+
+.label {
+  display: block;
+  font-size: 1rem;
+  color: var(--text-primary);
+  margin-bottom: 5px;
+}
+
+.container {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 768px) {
+  .nav-bar {
+    display: none !important;
+  }
+}
+
+.nav-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 32px;
+  border-bottom: 3px solid var(--color-gray);
+  background: var(--color-green); /* Solid block peek */
+}
+
+.brand {
+  font-size: 1.5rem;
+  color: var(--text-primary);
+}
+
+.kanban-board {
+  display: flex;
+  gap: 24px;
+  overflow-x: auto;
+  padding-bottom: 24px;
+}
+
+.kanban-column {
+  min-width: 300px;
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border: 3px solid var(--color-gray);
+  background-color: var(--color-peach); /* Solid block peek */
+  padding: 10px;
+}
+
+.kanban-column-header {
+  font-size: 1.2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--color-gray);
+}
+
+.kanban-card {
+  padding: 10px;
+  border: 2px solid var(--color-gray);
+  background-color: #ffffff;
+  cursor: grab;
+}
+
+.kanban-card:active {
+  cursor: grabbing;
+}
+
+.responsive-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 32px;
+}
+
+@media (min-width: 768px) {
+  .responsive-grid-2 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.typing-cursor {
+  animation: blink 1s step-end infinite;
+}
