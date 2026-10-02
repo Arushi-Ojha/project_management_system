@@ -13,6 +13,8 @@ class PlanEnum(str, Enum):
 class RoleEnum(str, Enum):
     owner = "owner"
     admin = "admin"
+    project_manager = "project_manager"
+    employee = "employee"
     member = "member"
     guest = "guest"
 
@@ -34,8 +36,11 @@ class OrganizationResponse(OrganizationCreate):
 class UserCreate(BaseModel):
     email: EmailStr
     name: Optional[str] = None
-    avatarUrl: Optional[HttpUrl] = None
+    avatarUrl: Optional[str] = None
     role: Optional[RoleEnum] = Field(default=RoleEnum.member)
+    organizationId: Optional[str] = Field(None, description="UUID of the parent organization")
+    employeeId: Optional[str] = Field(None, description="Auto-generated ID like EMP-001")
+    position: Optional[str] = Field(None, description="Job title, e.g. Backend Dev")
 
 class UserResponse(UserCreate):
     id: str = Field(..., description="UUID")

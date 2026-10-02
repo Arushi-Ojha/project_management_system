@@ -4,22 +4,45 @@ const BASE_URL = import.meta.env.PROD
 
 export async function apiCall(endpoint, options = {}) {
   const token = localStorage.getItem('token');
+  const isFormData = options.body instanceof FormData;
+  
   const headers = {
-    'Content-Type': 'application/json',
     ...(token && { 'Authorization': `Bearer ${token}` }),
+    ...(!isFormData && { 'Content-Type': 'application/json' }),
     ...options.headers,
   };
+
+  let body = options.body;
+  if (body && !isFormData && typeof body === 'object') {
+    body = JSON.stringify(body);
+  }
 
   const response = await fetch(`${BASE_URL}${endpoint}`, {
     ...options,
     headers,
-    body: options.body ? JSON.stringify(options.body) : undefined,
+    body,
   });
+
+  if (response.status === 204) {
+    return null;
+  }
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.detail || 'API request failed');
+    const detail = errorData.detail 
+      || errorData.message 
+      || (errorData.details && errorData.details.map(d => d.instruction).join('; '))
+      || `API request failed (${response.status})`;
+    throw new Error(detail);
+  }
+
+  // Handle blob/file responses (e.g. CSV exports)
+  const contentType = response.headers.get('content-type');
+  if (contentType && contentType.includes('text/csv')) {
+    return response.blob();
   }
 
   return response.json();
 }
+
+export { BASE_URL };

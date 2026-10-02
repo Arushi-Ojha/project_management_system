@@ -10,7 +10,8 @@ async def generate_issue_identifier(team_id: str) -> str:
     # 1. Fetch the team to get its unique prefix key
     team = await db["teams"].find_one({"id": team_id})
     if not team:
-        return "TSK-1" # Fallback if team is somehow missing
+        count = await db["issues"].count_documents({})
+        return f"TSK-{count + 1}"
         
     team_key = team.get("key", "TSK").upper()
     

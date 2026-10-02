@@ -1,42 +1,189 @@
-import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LayoutDashboard, Settings, LogOut } from 'lucide-react';
-import orangeIcon from '../assets/orange.png';
+import NotificationModal from './NotificationModal';
+import MeetSchedulerModal from './MeetSchedulerModal';
+import ProfileSettingsModal from './ProfileSettingsModal';
 
 export default function Navbar() {
-  const { user, organization, logout } = useAuth();
+  const { user, logout, unreadCount } = useAuth();
   const navigate = useNavigate();
 
+  const [showNotifModal, setShowNotifModal] = useState(false);
+  const [showMeetModal, setShowMeetModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+
+  if (!user) return null;
+
+  const role = user.role || 'employee';
+  const isAdmin = role === 'admin' || role === 'owner';
+  const isPM = role === 'project_manager';
+  const isEmployee = !isAdmin && !isPM;
+
   const handleLogout = () => {
-    logout();
-    navigate('/login');
+    if (window.confirm('Are you sure you want to sign out?')) {
+      logout();
+      navigate('/login');
+    }
   };
 
   return (
-    <nav className="nav-bar animate-fade-in">
-      <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <img src={orangeIcon} alt="PMS Logo" style={{ width: '28px', height: '28px' }} />
-        <span>PMS {organization && <span style={{ fontSize: '0.9rem', color: 'var(--primary-color)' }}>/ {organization.name}</span>}</span>
-      </div>
-      
-      <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-        <Link to="/dashboard" className="glass-button" style={{ textDecoration: 'none' }}>
-          <LayoutDashboard size={18} /> Dashboard
-        </Link>
-        <Link to="/settings" className="glass-button" style={{ textDecoration: 'none' }}>
-          <Settings size={18} /> Settings
-        </Link>
+    <>
+      <header className="navbar" style={{ padding: '10px 24px', minHeight: '60px' }}>
         
-        <div style={{ width: '1px', height: '24px', background: 'var(--surface-border)', margin: '0 8px' }}></div>
-        
-        <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-          {user?.name}
-        </span>
-        <button onClick={handleLogout} className="glass-button" style={{ color: 'var(--danger-color)', padding: '8px' }}>
-          <LogOut size={18} />
-        </button>
-      </div>
-    </nav>
+        {/* Left: Brand & Workspace Title & Role Badge */}
+        <div className="flex-row items-center gap-12" style={{ flexShrink: 0 }}>
+          <img src="/favicon.png" alt="WAYMARK" style={{ width: '28px', height: '28px', objectFit: 'contain' }} />
+          <span style={{ fontSize: '20px', fontWeight: 'bold' }}>
+            WAYMARK
+          </span>
+          <span style={{ fontSize: '14px', borderLeft: '1px solid #000', paddingLeft: '10px' }}>
+            {user.organizationName || 'Workspace'}
+          </span>
+          <span style={{ fontSize: '11px', border: '1px solid #000', padding: '2px 6px', fontWeight: 'bold' }}>
+            [{role.toUpperCase()}]
+          </span>
+        </div>
+
+        {/* Center: Main Page Navigation Links */}
+        <nav className="nav-links flex-row items-center gap-12" style={{ flexWrap: 'wrap' }}>
+          {isAdmin && (
+            <>
+              <NavLink to="/dashboard" className={({ isActive }) => isActive ? 'active' : ''}>
+                Dashboard & Terminal Logs
+              </NavLink>
+              <NavLink to="/basic-settings" className={({ isActive }) => isActive ? 'active' : ''}>
+                Basic Settings (Staff & Bulk Upload)
+              </NavLink>
+              <NavLink to="/advanced-settings" className={({ isActive }) => isActive ? 'active' : ''}>
+                Advanced Settings (All DB Collections)
+              </NavLink>
+            </>
+          )}
+
+          {isPM && (
+            <>
+              <NavLink to="/dashboard" className={({ isActive }) => isActive ? 'active' : ''}>
+                Dashboard & Progress
+              </NavLink>
+              <NavLink to="/projects" className={({ isActive }) => isActive ? 'active' : ''}>
+                Projects & Staffing
+              </NavLink>
+              <NavLink to="/workflows" className={({ isActive }) => isActive ? 'active' : ''}>
+                Workflows & Pipeline
+              </NavLink>
+              <NavLink to="/tasks-management" className={({ isActive }) => isActive ? 'active' : ''}>
+                Tasks & Reviews
+              </NavLink>
+            </>
+          )}
+
+          {isEmployee && (
+            <>
+              <NavLink to="/dashboard" className={({ isActive }) => isActive ? 'active' : ''}>
+                Dashboard & Teammates
+              </NavLink>
+              <NavLink to="/tasks" className={({ isActive }) => isActive ? 'active' : ''}>
+                My Tasks & Reports
+              </NavLink>
+            </>
+          )}
+        </nav>
+
+        {/* Right: Quick Action Controls & User Profile (Packed & Safely Separated) */}
+        <div className="flex-row items-center gap-10" style={{ flexShrink: 0, flexWrap: 'wrap' }}>
+          
+          <button
+            type="button"
+            onClick={() => setShowMeetModal(true)}
+            style={{ padding: '6px 12px', fontSize: '13px', cursor: 'pointer' }}
+          >
+            Schedule Meet
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowNotifModal(true)}
+            style={{
+              padding: '6px 12px',
+              fontSize: '13px',
+              fontWeight: unreadCount > 0 ? 'bold' : 'normal',
+              cursor: 'pointer'
+            }}
+          >
+            Notifications {unreadCount > 0 ? `(${unreadCount})` : '(0)'}
+          </button>
+
+          {/* Profile with Avatar (Bigger Icon) */}
+          <button
+            type="button"
+            onClick={() => setShowProfileModal(true)}
+            style={{
+              padding: '4px 12px',
+              fontSize: '13px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }}
+          >
+            {user.avatarUrl ? (
+              <img
+                src={user.avatarUrl}
+                alt="Avatar"
+                style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '50%',
+                  border: '2px solid #000',
+                  objectFit: 'cover',
+                  display: 'block'
+                }}
+              />
+            ) : (
+              <span
+                style={{
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  border: '2px solid #000',
+                  borderRadius: '50%',
+                  width: '38px',
+                  height: '38px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: '#fff'
+                }}
+              >
+                {user.name ? user.name.slice(0, 1).toUpperCase() : 'U'}
+              </span>
+            )}
+            <span style={{ fontWeight: 'bold' }}>Profile & Password</span>
+          </button>
+
+          {/* Sign Out with Safe Separation and Confirmation */}
+          <button
+            type="button"
+            onClick={handleLogout}
+            style={{
+              fontWeight: 'bold',
+              padding: '6px 14px',
+              fontSize: '13px',
+              marginLeft: '12px',
+              cursor: 'pointer'
+            }}
+            title="Sign out of your session"
+          >
+            Sign Out
+          </button>
+        </div>
+
+      </header>
+
+      {/* Modals */}
+      <NotificationModal isOpen={showNotifModal} onClose={() => setShowNotifModal(false)} />
+      <MeetSchedulerModal isOpen={showMeetModal} onClose={() => setShowMeetModal(false)} />
+      <ProfileSettingsModal isOpen={showProfileModal} onClose={() => setShowProfileModal(false)} />
+    </>
   );
 }

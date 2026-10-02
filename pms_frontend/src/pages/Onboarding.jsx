@@ -1,200 +1,329 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { apiCall } from '../services/api';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { ShieldCheck, Home } from 'lucide-react';
-import orangeIcon from '../assets/orange.png';
+import { apiCall } from '../services/api';
+import PublicNavbar from '../components/PublicNavbar';
 
 export default function Onboarding() {
-  const [view, setView] = useState('signup'); // 'signup', 'otp', 'login'
-  
-  // Signup State
-  const [signupData, setSignupData] = useState({ name: '', email: '', organizationName: '', password: '', website: '' }); // 'website' is the honeypot
-  
-  // OTP State
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const [mode, setMode] = useState(location.state?.mode || 'login'); // 'login', 'signup', 'verify_otp'
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [organizationName, setOrganizationName] = useState('');
   const [otp, setOtp] = useState('');
-  
-  // Login State
-  const [loginData, setLoginData] = useState({ email: '', password: '' });
-  
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  
-  const navigate = useNavigate();
-  const { login, setOrg } = useAuth();
-
-  const handleSignup = async (e) => {
-    e.preventDefault();
-    if (signupData.website) {
-      // Honeypot filled by bot -> silently discard
-      setView('otp');
-      return;
-    }
-    
-    setLoading(true);
-    setError(null);
-    try {
-      await apiCall('/iam/auth/signup', {
-        method: 'POST',
-        body: {
-          name: signupData.name,
-          email: signupData.email,
-          organizationName: signupData.organizationName,
-          password: signupData.password
-        }
-      });
-      setView('otp');
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleOtp = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    try {
-      await apiCall('/iam/auth/verify-otp', {
-        method: 'POST',
-        body: {
-          email: signupData.email,
-          otp: otp
-        }
-      });
-      setView('login');
-      setLoginData({ ...loginData, email: signupData.email });
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [infoMessage, setInfoMessage] = useState(null);
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError(null);
+    setInfoMessage(null);
     try {
+      setLoading(true);
       const res = await apiCall('/iam/auth/login', {
         method: 'POST',
-        body: {
-          email: loginData.email,
-          password: loginData.password
-        }
+        body: { email, password }
       });
-      login(res.user, res.accessToken);
-      setOrg({ id: res.user.organizationId }); // Mocking org name since backend doesn't return it in login yet
-      navigate('/');
+      login(res);
+      navigate('/dashboard');
     } catch (err) {
-      setError(err.message);
+      if (err.message.includes('verify your OTP') || err.message.includes('not verified')) {
+        setMode('verify_otp');
+        setInfoMessage('Account not yet verified. Please enter the OTP sent to your email.');
+      } else {
+        setError(err.message || 'Login failed');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignup = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setInfoMessage(null);
+    try {
+      setLoading(true);
+      const res = await apiCall('/iam/auth/signup', {
+        method: 'POST',
+        body: { organizationName, name, email, password }
+      });
+      setInfoMessage(res.message || 'OTP verification code sent to your email.');
+      setMode('verify_otp');
+    } catch (err) {
+      setError(err.message || 'Signup failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    setError(null);
+    try {
+      setLoading(true);
+      const res = await apiCall('/iam/auth/verify-otp', {
+        method: 'POST',
+        body: { email, otp }
+      });
+      setInfoMessage('Account verified successfully! Please log in.');
+      setMode('login');
+      setOtp('');
+    } catch (err) {
+      setError(err.message || 'Invalid or expired OTP');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
-      <div style={{ position: 'absolute', top: '24px', left: '24px' }}>
-        <Link to="/" className="glass-button">
-          <Home size={18} /> Home
-        </Link>
-      </div>
-      <div className="glass-panel" style={{ maxWidth: '440px', width: '100%', padding: '40px' }}>
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <img src={orangeIcon} alt="Hero Logo" style={{ width: '64px', height: '64px', marginBottom: '16px' }} />
-          <h1 style={{ fontSize: '1.8rem', marginBottom: '8px' }}>
-            {view === 'signup' ? 'Create Workspace' : view === 'otp' ? 'Verify OTP' : 'Login'}
-          </h1>
-        </div>
+    <div className="min-h-screen bg-white text-[#000000] flex-col font-space">
+      {/* Home page Navbar present on Login / Signup */}
+      <PublicNavbar />
 
-        {error && (
-          <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'red', padding: '12px', marginBottom: '24px', border: '1px solid red' }}>
-            {error}
+      <div className="flex-col items-center justify-center flex-1 py-12 px-6">
+        <div style={{ width: '100%', maxWidth: '440px', border: '2px solid #000', padding: '28px', background: '#fff', borderRadius: '28px' }} className="flex-col gap-16 shadow-[0_8px_0_0_#38bdf8]">
+          
+          {/* Header & Logo with Favicon */}
+          <div style={{ textAlign: 'center', borderBottom: '2px solid #000', paddingBottom: '16px' }}>
+            <img src="/favicon.png" alt="WAYMARK" style={{ width: '44px', height: '44px', objectFit: 'contain', margin: '0 auto 8px auto', display: 'block' }} />
+            <h1 style={{ margin: '0 0 6px 0', fontSize: '24px', fontWeight: 'bold' }}>WAYMARK</h1>
+            <p style={{ margin: 0, fontSize: '14px', color: '#0f172a' }}>
+              {mode === 'login' && 'Sign in to access your organization workspace'}
+              {mode === 'signup' && 'Create a new Organization Workspace as Admin'}
+              {mode === 'verify_otp' && 'Email Verification with 6-Digit OTP'}
+            </p>
+          </div>
+
+        {/* Tab Switcher */}
+        {mode !== 'verify_otp' && (
+          <div className="flex-row gap-12" style={{ marginTop: '4px', marginBottom: '8px' }}>
+            <button
+              type="button"
+              onClick={() => { setMode('login'); setError(null); }}
+              className={mode === 'login' ? 'btn-active' : ''}
+              style={{
+                flex: 1,
+                textAlign: 'center',
+                padding: '10px 14px',
+                fontSize: '15px',
+                fontWeight: mode === 'login' ? 'bold' : 'normal'
+              }}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMode('signup'); setError(null); }}
+              className={mode === 'signup' ? 'btn-active' : ''}
+              style={{
+                flex: 1,
+                textAlign: 'center',
+                padding: '10px 14px',
+                fontSize: '15px',
+                fontWeight: mode === 'signup' ? 'bold' : 'normal'
+              }}
+            >
+              Workspace Creation
+            </button>
           </div>
         )}
 
-        {/* SIGNUP FORM */}
-        {view === 'signup' && (
-          <form onSubmit={handleSignup} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div>
-              <label className="label">Organization Name</label>
-              <input required type="text" className="input-field" placeholder="e.g. Stark Industries" 
-                value={signupData.organizationName} onChange={e => setSignupData({...signupData, organizationName: e.target.value})} />
-            </div>
-            <div>
-              <label className="label">Full Name</label>
-              <input required type="text" className="input-field" placeholder="e.g. Ada Lovelace" 
-                value={signupData.name} onChange={e => setSignupData({...signupData, name: e.target.value})} />
-            </div>
-            <div>
-              <label className="label">Work Email</label>
-              <input required type="email" className="input-field" placeholder="name@yourorganization.com" 
-                value={signupData.email} onChange={e => setSignupData({...signupData, email: e.target.value})} />
-            </div>
-            <div>
-              <label className="label">Password</label>
-              <input required type="password" minLength={8} className="input-field" placeholder="Minimum 8 characters" 
-                value={signupData.password} onChange={e => setSignupData({...signupData, password: e.target.value})} />
-            </div>
-            
-            {/* HONEYPOT FIELD */}
-            <div style={{ display: 'none' }}>
-              <label>Website</label>
-              <input type="text" name="website" tabIndex="-1" autoComplete="off" 
-                value={signupData.website} onChange={e => setSignupData({...signupData, website: e.target.value})} />
-            </div>
-
-            <button type="submit" className="primary-button" disabled={loading}>
-              {loading ? 'Processing...' : 'Create Account'}
-            </button>
-            <p style={{ textAlign: 'center', fontSize: '0.9rem', marginTop: '16px', cursor: 'pointer' }} onClick={() => setView('login')}>
-              Already have an account? Log in
-            </p>
-          </form>
+        {error && (
+          <div style={{ border: '2px solid #000', padding: '10px', background: '#fff' }}>
+            <p style={{ margin: 0, fontWeight: 'bold', fontSize: '13px' }}>Error: {error}</p>
+          </div>
         )}
-
-        {/* OTP FORM */}
-        {view === 'otp' && (
-          <form onSubmit={handleOtp} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div>
-              <label className="label">6-Digit Code</label>
-              <input required type="text" maxLength={6} className="input-field" placeholder="123456" 
-                value={otp} onChange={e => setOtp(e.target.value)} />
-            </div>
-            <button type="submit" className="primary-button" disabled={loading}>
-              {loading ? 'Verifying...' : 'Verify Email'}
-            </button>
-          </form>
+        {infoMessage && (
+          <div style={{ border: '2px solid #000', padding: '10px', background: '#fff' }}>
+            <p style={{ margin: 0, fontWeight: 'bold', fontSize: '13px' }}>{infoMessage}</p>
+          </div>
         )}
 
         {/* LOGIN FORM */}
-        {view === 'login' && (
-          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        {mode === 'login' && (
+          <form onSubmit={handleLogin} className="flex-col gap-16">
             <div>
-              <label className="label">Email</label>
-              <input required type="email" className="input-field" placeholder="name@yourorganization.com" 
-                value={loginData.email} onChange={e => setLoginData({...loginData, email: e.target.value})} />
+              <label style={{ fontSize: '14px', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>
+                Work Email Address:
+              </label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="user@company.com"
+                style={{ fontSize: '15px', padding: '8px 10px' }}
+              />
             </div>
+
             <div>
-              <label className="label">Password</label>
-              <input required type="password" className="input-field" placeholder="••••••••" 
-                value={loginData.password} onChange={e => setLoginData({...loginData, password: e.target.value})} />
+              <label style={{ fontSize: '14px', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>
+                Password:
+              </label>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="Enter password"
+                style={{ fontSize: '15px', padding: '8px 10px' }}
+              />
             </div>
-            <button type="submit" className="primary-button" disabled={loading}>
-              {loading ? 'Logging in...' : 'Login'}
-            </button>
-            <p style={{ textAlign: 'center', fontSize: '0.9rem', marginTop: '16px', cursor: 'pointer' }} onClick={() => setView('signup')}>
-              Don't have an account? Sign up
-            </p>
+
+            <div style={{ marginTop: '8px' }}>
+              <button
+                type="submit"
+                disabled={loading}
+                style={{
+                  width: '100%',
+                  fontWeight: 'bold',
+                  padding: '10px 16px',
+                  fontSize: '15px',
+                  cursor: 'pointer'
+                }}
+              >
+                {loading ? 'Authenticating...' : 'Sign In to Workspace'}
+              </button>
+            </div>
           </form>
         )}
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '24px', fontSize: '0.8rem' }}>
-          <ShieldCheck size={14} /> Secure Authentication
-        </div>
+        {/* WORKSPACE CREATION FORM */}
+        {mode === 'signup' && (
+          <form onSubmit={handleSignup} className="flex-col gap-14">
+            <div>
+              <label style={{ fontSize: '14px', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>
+                Organization / Workspace Name:
+              </label>
+              <input
+                type="text"
+                required
+                value={organizationName}
+                onChange={e => setOrganizationName(e.target.value)}
+                placeholder="e.g. Acme Innovations Corp"
+                style={{ fontSize: '14px', padding: '8px 10px' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ fontSize: '14px', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>
+                Admin Full Name:
+              </label>
+              <input
+                type="text"
+                required
+                value={name}
+                onChange={e => setName(e.target.value)}
+                placeholder="e.g. Jane Doe"
+                style={{ fontSize: '14px', padding: '8px 10px' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ fontSize: '14px', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>
+                Admin Email Address:
+              </label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="admin@company.com"
+                style={{ fontSize: '14px', padding: '8px 10px' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ fontSize: '14px', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>
+                Admin Password (minimum 8 characters):
+              </label>
+              <input
+                type="password"
+                required
+                minLength={8}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="Enter secure password"
+                style={{ fontSize: '14px', padding: '8px 10px' }}
+              />
+            </div>
+
+            <div style={{ marginTop: '8px' }}>
+              <button
+                type="submit"
+                disabled={loading}
+                style={{
+                  width: '100%',
+                  fontWeight: 'bold',
+                  padding: '10px 16px',
+                  fontSize: '15px',
+                  cursor: 'pointer'
+                }}
+              >
+                {loading ? 'Creating Workspace...' : 'Create Workspace & Send OTP'}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* VERIFY OTP FORM */}
+        {mode === 'verify_otp' && (
+          <form onSubmit={handleVerifyOtp} className="flex-col gap-16">
+            <div>
+              <label style={{ fontSize: '14px', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>
+                Enter 6-Digit OTP Sent to {email}:
+              </label>
+              <input
+                type="text"
+                required
+                maxLength={6}
+                value={otp}
+                onChange={e => setOtp(e.target.value)}
+                placeholder="123456"
+                style={{ textAlign: 'center', letterSpacing: '6px', fontSize: '20px', padding: '10px' }}
+              />
+            </div>
+
+            <div className="flex-col gap-10">
+              <button
+                type="submit"
+                disabled={loading}
+                style={{
+                  width: '100%',
+                  fontWeight: 'bold',
+                  padding: '10px 16px',
+                  fontSize: '15px',
+                  cursor: 'pointer'
+                }}
+              >
+                {loading ? 'Verifying OTP...' : 'Verify OTP & Activate Workspace'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setMode('login'); setError(null); }}
+                style={{
+                  width: '100%',
+                  padding: '8px 14px',
+                  fontSize: '14px',
+                  cursor: 'pointer'
+                }}
+              >
+                Back to Sign In
+              </button>
+            </div>
+          </form>
+        )}
+
       </div>
     </div>
-  );
+  </div>
+);
 }
